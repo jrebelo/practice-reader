@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Practice Reader</title>
+</head>
+
+<body>
+    <h1>Bibliotheek</h1>
+    <ul id="book_list">
+        <!-- To be filled up by the javascript with the request contents -->
+    </ul>
+
+    <script>
+        const book_list_element = document.getElementById('book_list');
+        const fetch_text_list_promise = fetch(`http://${window.location.hostname}:8888`);
+        fetch_text_list_promise
+            .then((response) => response.json())
+            .then((data) => {
+                for (const book of data) {
+                    book_list_element.innerHTML += `
+                        <li class=\"book\"> \
+                            <div class=\"book_title\"><a class="book_link" href="word_reader.html?story=${book.file_name}">${book.title}</a></div>\
+                        </li>`;
+                }
+                console.log(data);
+            });
+
+    </script>
+</body>
+
+</html>

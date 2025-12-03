@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Word by word | Practice Reader</title>
+    <style>
+        @font-face {
+            font-family: 'OpenDyslexic';
+            src: url('font/OpenDyslexic-Regular.otf') format("opentype");
+        }
+
+        body {
+            font-family: OpenDyslexic, Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+
+        #word_display {
+            font-size: 40px;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #333;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .button {
+            font-size: 18px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        .progress {
+            margin-top: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="full_display">
+        <p>
+        <div id="word_display"></div>
+        </p>
+
+        <p>
+            <button id="previous_word_button" class="button">Vorige woord</button>
+            <button id="next_word_button" class="button">Volgende woord</button>
+        <div id="word_progress" class="progress"></div>
+        </p>
+
+        <p>
+            <button id="previous_paragraph_button" class="button">Vorige paragraaf</button>
+            <button id="next_paragraph_button" class="button">Volgende paragraaf</button>
+        <div id="block_progress" class="progress"></div>
+        </p>
+
+        <div>
+            <input type="checkbox" id="bd_color" name="bd_color" checked />
+            <label for="bd_color">b/d kleur</label>
+
+            <input type="checkbox" id="block_color" name="block_color" checked />
+            <label for="block_color">kleurblok</label>
+
+        </div>
+
+    </div>
+
+    <script>
+        const url_params = new URLSearchParams(window.location.search);
+        const story = url_params.get("story");
+        const book_list_element = document.getElementById('book_list');
+
+        const fetch_story_promise = fetch(`http://${window.location.hostname}:8888/word_reader?` + new URLSearchParams({
+            story: story,
+        }).toString());
+
+        let paragraph_index = 0;
+        let word_index = 0;
+        let paragraph_list = [[]];
+        fetch_story_promise
+            .then((response) => response.json())
+            .then((data) => {
+                paragraph_list = data.paragraph_list
+                display_word();
+                update_word_progress();
+                update_block_progress();
+            });
+
+        function is_vowel(x) {
+            return x == "a" || x == "e" || x == "i" || x == "o" || x == "u";
+        }
+
+        function is_diphthong(x, y) {
+            return (x == "i" && y == "j") ||
+                (x == "e" && y == "i") ||
+                (x == "o" && y == "u") ||
+                (x == "a" && y == "u") ||
+                (x == "i" && y == "e") ||
+                (x == "o" && y == "e") ||
+                (x == "e" && y == "u") ||
+                (x == "u" && y == "i")
+        }
+
+        function display_word() {
+            const word_display = document.getElementById("word_display");
+            const is_bd_color = document.getElementById("bd_color").checked;
+            const is_block_color = document.getElementById("block_color").checked;
+            if (word_index < paragraph_list[paragraph_index].length) {
+                const word = paragraph_list[paragraph_index][word_index];
+                word_display.textContent = ''
+                word.forEach(syllable => {
+                    for (let i = 0; i < syllable.length; i++) {
+                        if (is_block_color) {
+                            const letter = syllable[i];
+                            const lower_case_letter = letter.toLowerCase();
+
+                            if (is_vowel(lower_case_letter)) {
+                                // If there is a next letter available check for combinations
+                                if (i < syllable.length - 1) {
+                                    const next_letter = syllable[i + 1];
+                                    const next_lower_case_letter = next_letter.toLowerCase();
+                                    if (letter == next_letter) {
+                                        word_display.innerHTML += `<span style="background-color: yellow;">${letter}${next_letter}</span>`;
+                                        i++;
+                                    } else if (is_diphthong(lower_case_letter, next_lower_case_letter)) {
+                                        word_display.innerHTML += `<span style="background-color: red;">${letter}${next_letter}</span>`;
+                                        i++;
+                                    } else {
+                                        word_display.innerHTML += `<span style="background-color: lightgreen;">${letter}</span>`;
+                                    }
+                                } else {
+                                    word_display.innerHTML += `<span style="background-color: lightgreen;">${letter}</span>`;
+                                }
+
+                            } else {
+                                word_display.innerHTML += `<span style="background-color: lightblue;">${letter}</span>`;
+                            }
+                        } else if (is_bd_color) {
+                            const letter = syllable[i];
+                            const lower_case_letter = letter.toLowerCase();
+
+                            if (lower_case_letter === 'd') {
+                                word_display.innerHTML += `<span style="background-color: lightgreen;">${letter}</span>`;
+                            } else if (lower_case_letter === 'b') {
+                                word_display.innerHTML += `<span style="background-color: red;">${letter}</span>`;
+                            } else {
+                                word_display.innerHTML += letter;
+                            }
+                        } else {
+                            word_display.innerHTML += syllable[i];
+                        }
+                    }
+                });
+            }
+            else {
+                word_display.textContent = '🎉';
+            }
+        }
+
+        function update_word_progress() {
+            document.getElementById("word_progress").textContent = `Woord ${word_index + 1} van ${paragraph_list[paragraph_index].length}`;
+        }
+
+        function update_block_progress() {
+            document.getElementById("block_progress").textContent = `Paragraph ${paragraph_index + 1} van ${paragraph_list.length}`;
+        }
+
+        document.getElementById("previous_word_button").addEventListener('click', () => {
+            if (word_index > 0) {
+                word_index--;
+            }
+            display_word();
+            update_word_progress();
+        });
+
+        document.getElementById("next_word_button").addEventListener('click', () => {
+            if (word_index < paragraph_list[paragraph_index].length) {
+                word_index++;
+            }
+            display_word();
+            update_word_progress();
+        });
+
+        document.getElementById("previous_paragraph_button").addEventListener('click', () => {
+            if (paragraph_index > 0) {
+                paragraph_index--;
+                word_index = 0;
+            }
+            display_word();
+            update_block_progress();
+            update_word_progress();
+        });
+
+        document.getElementById("next_paragraph_button").addEventListener('click', () => {
+            if (paragraph_index < paragraph_list.length - 1) {
+                paragraph_index++;
+                word_index = 0;
+            }
+            display_word();
+            update_block_progress();
+            update_word_progress();
+        });
+
+        document.getElementById("bd_color").addEventListener('change', (event) => {
+            display_word();
+        })
+
+        document.getElementById("block_color").addEventListener('change', (event) => {
+            display_word();
+        }) 
+    </script>
+</body>
+
+</html>
